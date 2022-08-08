@@ -26,35 +26,64 @@ pbmc <- ScaleData(pbmc, features = all.genes)
 # Linear dimensional reduction
 # Run PCA, use previously determined variables features as input
 pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+pbmc <- RunUMAP(pbmc, dims = 1:10)
 
-ui <- fluidPage(
-  titlePanel("Seurat tutorial"),
+ui <- navbarPage("Seurat tutorial",
   
-  sidebarLayout(
-    sidebarPanel(
-      helpText("Follow the Seurat analysis of single cell dataset."),
-      
-      selectInput("feature", 
-                  label = "Choose a variable to display",
-                  choices = c("nFeature_RNA", 
-                              "nCount_RNA",
-                              "percent.mt"),
-                  selected = "nFeature_RNA"),
-      sliderInput("topNfeautres", 
-                  label = "Select number of highly variable fetures:",
-                  min = 1, max = 50, value = 10),
-      
-      sliderInput("PC_N", 
-                  label = "Select the PC to visualize:",
-                  min = 1, max = 20, value = 1)
-    ),
-    
-    mainPanel(
-      plotOutput("Violin_features"),
-      tableOutput('topN'),
-      plotOutput('PC_plot')
-    )
+  tabPanel("QC metrics", 
+           sidebarLayout(
+             sidebarPanel(
+               helpText("Use this tab to visualize QC metrics and use them to filter cells."),
+               selectInput("feature", 
+                           label = "Choose a metric to display",
+                           choices = c("nFeature_RNA", 
+                                       "nCount_RNA",
+                                       "percent.mt"),
+                           selected = "nFeature_RNA")
+             ),
+             mainPanel(plotOutput("Violin_features")
+             )
+           )
+  ),
+  tabPanel("Summary", 
+           sidebarLayout(
+             sidebarPanel(
+               helpText("Use this tab to find features that exhibit high cell-to-cell variation in the dataset."),
+               helpText("Focusing on these genes in downstream analysis helps to highlight biological signal."),
+               sliderInput("topNfeautres", 
+                           label = "Select number of highly variable fetures:",
+                           min = 1, max = 50, value = 10)
+             ),
+             mainPanel(tableOutput('topN'))
+           )
+  ),
+  tabPanel("PCA", 
+           sidebarLayout(
+             sidebarPanel(
+               helpText("Explote the primary sources of heterogeneity in the dataset"),
+               sliderInput("PC_N", 
+                           label = "Select the PC to visualize:",
+                           min = 1, max = 20, value = 1)
+             ),
+             mainPanel(plotOutput('PC_plot'), plotOutput('PC_heatmap'))
+           )
+  ),
+  tabPanel("UMAP", 
+           sidebarLayout(
+             sidebarPanel(
+               helpText("Cluster similar cells together in low-dimensional space using non-linear reduction techniques."),
+               helpText("FVisualize marker expression on a PCA plot."),
+               selectInput("gene", 
+                           label = "Choose a variable to display",
+                           choices = c( "MS4A1", "GNLY", "CD3E", "CD14",
+                                       "FCER1A", "FCGR3A", "LYZ",
+                                       "PPBP", "CD8A"),
+                           selected = "MS4A1")
+             ),
+             mainPanel(plotOutput('UMAP_plot'))
+           )
   )
+  
 )
 
 
@@ -72,6 +101,15 @@ server <-function(input, output) {
     
     VizDimLoadings(pbmc, dims = input$PC_N, reduction = "pca")
     
+  })
+  
+  output$PC_heatmap <- renderPlot({
+    DimHeatmap(pbmc, dims = input$PC_N, cells = 500, balanced = TRUE)
+    
+  })
+  
+  output$UMAP_plot <- renderPlot({
+    FeaturePlot(pbmc, features = input$gene)
   })
 }
 
